@@ -3,6 +3,10 @@ import glob
 from scipy.spatial.distance import cosine
 import numpy as np
 import itertools
+import shutil
+import os 
+import sys
+from joblib import Parallel, delayed
 
 ## include sift and flann modules
 sift = cv2.SIFT()
@@ -32,10 +36,6 @@ def init(folder):
 		
 	return Images
 
-## initialize reference and matching images
-reference = init('ref/')
-matchImage = init('frames/1')
-
 ## sift matching function
 def sift_match(ref, img):
 	
@@ -58,11 +58,10 @@ def match_col_hist(ref, img):
 def match(ref, matchImage, match_func):
 
 	matches=[]	
-	for index, refImage in enumerate(reference):
+	for index, refImage in enumerate(ref):
 		for index, fl in enumerate(matchImage):
-			matchImage[index][2] += match_func(refImage[1], fl[1])/len(reference)
+			matchImage[index][2] += match_func(refImage[1], fl[1])/len(ref)
 
-	
 	return sorted(matchImage, key=lambda x: -x[2])
 
 ## reset descriptor and distance value
@@ -76,19 +75,32 @@ def descriptor(img):
 ## plot image 
 def show_img(mat):
 	cv2.imshow('disp', mat)
-	cv2.waitKey(0)
 
-## call matching color histogram for template and candidte image
-cartoon_matches=match(reference, matchImage, match_col_hist)
-matches = cartoon_matches[:100]
+def doParallel(fl, prefix):
+	reference = init('ref/')
+	matchImage = init(fl + '/')
 
-#descriptor(reference)
-#descriptor(matches)
+	## call matching color histogram for template and candidte image
+	cartoon_matches = match(reference, matchImage, match_col_hist)
+	cartoon_matches = [c for c in cartoon_matches if c[2]>-0.64]
 
-#matches = match(reference, matches, sift_match)
+	descriptor(reference)
+	descriptor(cartoon_matches)
 
-## iterate over the best candidate image after match
-for idx, match in enumerate(matches):
-	img, desc, dist, name= match
-	print idx, dist, name	
-	show_img(img)
+	cartoon_matches = match(reference, cartoon_matches, sift_match)
+	cartoon_matches = [c for c in cartoon_matches if c[2] > 0.26]
+
+	## iterate over the best candidate image after match
+	for idx, _match in enumerate(cartoon_matches):
+		img, desc, dist, name = _match
+		print idx, dist, name 
+		dest = os.path.join(output, prefix + str(idx) +'.bmp')
+		shutil.copyfile(name, dest)
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
+folder = os.path.join(dir_path, sys.argv[1])
+output = os.path.join(dir_path, sys.argv[2])
+
+#Parallel(n_jobs=1, verbose=5)(delayed(doParallel)(fl, str(idx)) for idx,fl in enumerate(glob.glob('%s/*'%folder)))	
+for idx,fl in enumerate(glob.glob('%s/*'%folder)):
+	doParallel(fl, str(idx)) 
