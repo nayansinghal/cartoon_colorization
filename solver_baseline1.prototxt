@@ -1,0 +1,18 @@
+net: "./models/train_val_baseline1.prototxt"
+test_iter: 400 # number of iterations per step
+test_interval: 100 # never test
+test_initialization: False # don't run validation when loading
+base_lr: 1e-2 #1e-4 #3.16e-5
+lr_policy: "step"
+gamma: 0.316
+stepsize: 215000
+display: 10
+max_iter: 500000
+momentum: 0.9
+momentum2: 0.99
+weight_decay: 1e-4 #0.001
+snapshot: 1000
+snapshot_prefix: "/work/04393/nayans/colorization/snapshot/b1_wow_"
+solver_mode: GPU
+type: "Adam"
+average_loss: 1000
